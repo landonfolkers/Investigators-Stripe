@@ -14,3 +14,5 @@
 
 * Your client side code will make requests against the server at `http://localhost:5000/`
 * You will need to install the `dotenv` npm package in the server side to hide your stripe secret
+
+deployed: http://hard-to-find-thread.surge.sh/
