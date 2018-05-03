@@ -16,3 +16,5 @@
 * You will need to install the `dotenv` npm package in the server side to hide your stripe secret
 
 deployed: http://hard-to-find-thread.surge.sh/
+
+Backend code is here https://github.com/landonfolkers/Stripe-Backend
