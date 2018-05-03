@@ -1,68 +1,60 @@
-let stripe = Stripe('pk_test_Y3zsBoi7U6kxfKFTb0U2NlzJ');
-let elements = stripe.elements();
-let style = {
-    base: {
-        color: '#32325d',
-        fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
-        fontSmoothing: 'antialiased',
-        fontSize: '16px',
-        '::placeholder': {
-            color: '#aab7c4'
-        }
-    },
-    invalid: {
-        color: '#fa755a',
-        iconColor: '#fa755a'
-    }
-};
+let cardElement = document.querySelector("#card-element");
+let paymentForm = document.querySelector("form");
+const message = document.querySelector("#message");
+const errors = document.querySelector("#errors");
+const key = "pk_test_Y3zsBoi7U6kxfKFTb0U2NlzJ";
+const stripe = Stripe(key);
+const elements = stripe.elements();
+const card = elements.create("card");
+card.mount(cardElement);
 
-let card = elements.create('card', { style: style });
+(function attachEventListeners(){
+    card.addEventListener("change", onCardChange);
+    paymentForm.addEventListener("submit", submitPaymentForm);
+})();
 
-card.mount('#card-element');
+function onCardChange(event){
+    errors.textContent = event.error
+        ? event.error.message
+        : "";
+}
 
-card.addEventListener('change', function (event) {
-    var displayError = document.getElementById('card-errors');
-    if (event.error) {
-        displayError.textContent = event.error.message;
-    } else {
-        displayError.textContent = '';
-    }
-});
-
-let form = document.getElementById('payment-form');
-form.addEventListener('submit', function (event) {
+function submitPaymentForm(event){
     event.preventDefault();
-    stripe.createToken(card).then(function (result) {
-        if (result.error) {
-            let errorElement = document.getElementById('card-errors');
-            errorElement.textContent = result.error.message;
-        } else {
-            stripeTokenHandler(result.token);
-        }
+    const formData = new FormData(event.target);
+    stripe.createToken(card).then(result => {
+        result.error
+            ? displayError(result.error.message)
+            : sendStripePayment({
+                name: formData.get("name"),
+                description: formData.get("description"),
+                amount: formData.get("amount") * 100,
+                token: result.token.id
+            });
     });
-});
+}
 
-document.getElementById('amount').addEventListener('blur', function () {
-    if (amount.value <= 0) {
-        document.getElementById('error').innerText = "Amount needs to be greater than 0"
-    } else if (amount.value > 387) {
-        document.getElementById('error').innerText = "Amount should be $387 or less"
-    } else if (amount.value > 0 && amount.value < 387) {
-        document.getElementById('error').innerText = ""
-    }
-});
+function sendStripePayment(parameters){
+    const url = "http://localhost:5000/charge";
+    fetch(url, {
+        method: "POST",
+        headers: new Headers({"Content-Type": "application/json"}),
+        body: JSON.stringify(parameters)
+    }).then(response => response.json())
+    .then(({data, error}) => {
+        error
+            ? displayMessage(error, true)
+            : displayMessage(data.amount / 100, data.outcome.seller_message);
+    }).catch(error => {
+        displayMessage(error.message, true);
+        throw new Error(error);
+    });
+}
 
-function stripeTokenHandler(token) {
-    let form = document.getElementById('payment-form');
-    let hiddenInput = document.createElement('input');
-    let amount = document.getElementsByName('amount')
-    let amountCharged = amount.value
-    hiddenInput.setAttribute('type', 'hidden');
-    hiddenInput.setAttribute('name', 'stripeToken');
-    hiddenInput.setAttribute('value', token.id);
-    hiddenInput.setAttribute('amount', amountCharged);
-    form.appendChild(hiddenInput);
-    form.submit();
-};
+function displayMessage(message, isError){
+    isError
+        ? errors.textContent = message
+        : message.textContent = message;
+}
 
 
